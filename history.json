@@ -1,5 +1,22 @@
 [
   {
+    "filename": "gen_20261004_000202_3773913352.png",
+    "filepath": "/home/jack/Desktop/AAA1v1/outputs/gen_20261004_000202_3773913352.png",
+    "url": "/outputs/gen_20261004_000202_3773913352.png",
+    "prompt": "sharp highly detailed full body  images of an alien female hunters, dark hair, perfect face, in a tropical jungle",
+    "negative_prompt": "nudity, nipples, bare breasts",
+    "steps": 20,
+    "cfg_scale": 7.0,
+    "sampler": "Euler a",
+    "seed": 3773913352,
+    "width": 768,
+    "height": 512,
+    "model": "dreamshaper_8.safetensors",
+    "model_path": "/media/jack/USB_USBSSD/models/checkpoints/dreamshaper_8.safetensors",
+    "render_time": 650.21,
+    "created_at": "2026-10-04 00:02:02"
+  },
+  {
     "filename": "gen_20261003_234103_606147685.png",
     "filepath": "/home/jack/Desktop/AAA1v1/outputs/gen_20261003_234103_606147685.png",
     "url": "/outputs/gen_20261003_234103_606147685.png",

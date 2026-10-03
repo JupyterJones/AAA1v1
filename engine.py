@@ -198,6 +198,75 @@ class GenerationEngine:
         self.is_interrupted = True
         self.progress_state["status"] = "interrupting"
 
+    def encode_prompt_long(self, pipe_obj, prompt, negative_prompt=""):
+        """
+        Encode prompts of arbitrary length into 77-token chunks without truncation.
+        Concatenates hidden states across chunks so UNet attends to unlimited tokens.
+        """
+        tokenizer = pipe_obj.tokenizer
+        text_encoder = pipe_obj.text_encoder
+        device = self.device
+
+        bos_token_id = tokenizer.bos_token_id
+        eos_token_id = tokenizer.eos_token_id
+        pad_token_id = tokenizer.pad_token_id or eos_token_id
+
+        def tokenize_to_chunks(text):
+            if not text or not str(text).strip():
+                return [[bos_token_id, eos_token_id] + [pad_token_id] * 75]
+
+            orig_max = tokenizer.model_max_length
+            try:
+                tokenizer.model_max_length = int(1e9)
+                tokens = tokenizer(str(text), truncation=False, add_special_tokens=False)["input_ids"]
+            finally:
+                tokenizer.model_max_length = orig_max
+
+            if not tokens:
+                return [[bos_token_id, eos_token_id] + [pad_token_id] * 75]
+
+            chunks = []
+            chunk_size = 75
+            for i in range(0, len(tokens), chunk_size):
+                chunk = tokens[i : i + chunk_size]
+                padded = [bos_token_id] + chunk + [eos_token_id]
+                pad_len = 77 - len(padded)
+                if pad_len > 0:
+                    padded = padded + [pad_token_id] * pad_len
+                chunks.append(padded)
+            return chunks
+
+        prompt_chunks = tokenize_to_chunks(prompt)
+        neg_chunks = tokenize_to_chunks(negative_prompt)
+
+        # Equalize chunk count so prompt and negative prompt have matching sequence length
+        num_chunks = max(len(prompt_chunks), len(neg_chunks))
+        empty_chunk = [bos_token_id, eos_token_id] + [pad_token_id] * 75
+
+        while len(prompt_chunks) < num_chunks:
+            prompt_chunks.append(empty_chunk)
+        while len(neg_chunks) < num_chunks:
+            neg_chunks.append(empty_chunk)
+
+        if num_chunks > 1:
+            print(f"[*] Long prompt detected: split into {num_chunks} chunks ({num_chunks * 77} tokens total)")
+
+        target_dtype = getattr(pipe_obj.unet, "dtype", text_encoder.dtype)
+
+        def encode_chunks(chunks):
+            embeds = []
+            for c in chunks:
+                chunk_tensor = torch.tensor([c], dtype=torch.long, device=device)
+                with torch.no_grad():
+                    e = text_encoder(chunk_tensor)[0]
+                embeds.append(e)
+            return torch.cat(embeds, dim=1).to(dtype=target_dtype, device=device)
+
+        prompt_embeds = encode_chunks(prompt_chunks)
+        neg_prompt_embeds = encode_chunks(neg_chunks)
+
+        return prompt_embeds, neg_prompt_embeds
+
     def generate_txt2img(self, params, output_dir):
         prompt = params.get("prompt", "")
         negative_prompt = params.get("negative_prompt", "")
@@ -270,11 +339,13 @@ class GenerationEngine:
             self.progress_state["info"] = f"Step {step}/{steps} ({int(progress*100)}%) • {round(time_per_step, 1)}s/it • ETA: {eta}s"
             return callback_kwargs
 
+        prompt_embeds, neg_prompt_embeds = self.encode_prompt_long(self.pipe, prompt, negative_prompt)
+
         try:
             with torch.inference_mode():
                 result = self.pipe(
-                    prompt=prompt,
-                    negative_prompt=negative_prompt if negative_prompt else None,
+                    prompt_embeds=prompt_embeds,
+                    negative_prompt_embeds=neg_prompt_embeds,
                     num_inference_steps=steps,
                     guidance_scale=cfg_scale,
                     width=width,
@@ -382,11 +453,13 @@ class GenerationEngine:
             "info": "Img2Img processing..."
         }
 
+        prompt_embeds, neg_prompt_embeds = self.encode_prompt_long(img2img_pipe, prompt, negative_prompt)
+
         try:
             with torch.inference_mode():
                 result = img2img_pipe(
-                    prompt=prompt,
-                    negative_prompt=negative_prompt if negative_prompt else None,
+                    prompt_embeds=prompt_embeds,
+                    negative_prompt_embeds=neg_prompt_embeds,
                     image=init_img,
                     strength=strength,
                     num_inference_steps=steps,
@@ -546,11 +619,13 @@ class GenerationEngine:
             self.progress_state["info"] = f"Inpaint Step {current_step}/{steps} ({int(progress*100)}%)"
             return callback_kwargs
 
+        prompt_embeds, neg_prompt_embeds = self.encode_prompt_long(inpaint_pipe, prompt, negative_prompt)
+
         try:
             with torch.inference_mode():
                 result = inpaint_pipe(
-                    prompt=prompt,
-                    negative_prompt=negative_prompt if negative_prompt else None,
+                    prompt_embeds=prompt_embeds,
+                    negative_prompt_embeds=neg_prompt_embeds,
                     image=init_img,
                     mask_image=mask_img,
                     width=width,
