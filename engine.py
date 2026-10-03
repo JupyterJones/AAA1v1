@@ -6,7 +6,7 @@ import glob
 import torch
 from datetime import datetime
 from PIL import Image, ImageFilter, ImageOps
-
+from icecream import ic
 # Ensure PyTorch ignores CUDA checks on CPU
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
@@ -453,7 +453,8 @@ class GenerationEngine:
         if not model_path:
             models = self.scan_models()
             if models:
-                model_path = list(models.values())[0]["path"]
+                comiccraft_match = [m["path"] for m in models.values() if "comiccraft" in m["name"].lower()]
+                model_path = comiccraft_match[0] if comiccraft_match else list(models.values())[0]["path"]
             else:
                 return {"success": False, "error": "No checkpoints found"}
 
@@ -467,7 +468,28 @@ class GenerationEngine:
 
         if self.pipe_inpaint is None:
             print("[*] Creating StableDiffusionInpaintPipeline from loaded pipe...")
-            self.pipe_inpaint = StableDiffusionInpaintPipeline.from_pipe(self.pipe)
+            try:
+                self.pipe_inpaint = StableDiffusionInpaintPipeline.from_pipe(
+                    self.pipe,
+                    vae=self.pipe.vae,
+                    safety_checker=None,
+                    requires_safety_checker=False
+                )
+            except Exception as pe:
+                print(f"[!] from_pipe failed ({pe}), falling back to direct instantiation...")
+                self.pipe_inpaint = StableDiffusionInpaintPipeline(
+                    vae=self.pipe.vae,
+                    text_encoder=self.pipe.text_encoder,
+                    tokenizer=self.pipe.tokenizer,
+                    unet=self.pipe.unet,
+                    scheduler=self.pipe.scheduler,
+                    safety_checker=None,
+                    feature_extractor=None,
+                    requires_safety_checker=False
+                ).to(self.device)
+            self.pipe_inpaint.enable_attention_slicing(1)
+        else:
+            self.pipe_inpaint.vae = self.pipe.vae
 
         inpaint_pipe = self.pipe_inpaint
         self.set_scheduler_for_pipe(inpaint_pipe, sampler, is_lcm=is_lcm)
@@ -475,6 +497,10 @@ class GenerationEngine:
         # Prepare images
         init_img = Image.open(init_image_path).convert("RGB")
         mask_img = Image.open(mask_image_path).convert("L")
+
+        # Ensure dimensions are multiples of 8 for UNet/VAE
+        width = (width // 8) * 8
+        height = (height // 8) * 8
 
         # Resize to matching target dimensions
         init_img = init_img.resize((width, height), Image.Resampling.LANCZOS)
@@ -527,6 +553,8 @@ class GenerationEngine:
                     negative_prompt=negative_prompt if negative_prompt else None,
                     image=init_img,
                     mask_image=mask_img,
+                    width=width,
+                    height=height,
                     strength=strength,
                     num_inference_steps=steps,
                     guidance_scale=cfg_scale,

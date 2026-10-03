@@ -174,12 +174,22 @@ document.addEventListener("DOMContentLoaded", () => {
         const opt = document.createElement("option");
         opt.value = cp.path;
         opt.textContent = `${cp.name} (${cp.size_gb} GB)${cp.is_lcm ? " [LCM]" : ""}`;
-        if (!defaultSelected && (cp.is_lcm || cp.name.includes("dreamshaper"))) {
+        if (!defaultSelected && cp.name.toLowerCase().includes("comiccraft")) {
           opt.selected = true;
           defaultSelected = true;
         }
         checkpointSelect.appendChild(opt);
       });
+
+      // Fallback if comiccraft is not installed
+      if (!defaultSelected && checkpointSelect.options.length > 0) {
+        const fallbackLcm = Array.from(checkpointSelect.options).find(o => o.text.toLowerCase().includes("[lcm]"));
+        if (fallbackLcm) {
+          fallbackLcm.selected = true;
+        } else {
+          checkpointSelect.selectedIndex = 0;
+        }
+      }
 
       // VAEs
       vaeSelect.innerHTML = '<option value="">Default (Baked VAE)</option>';
