@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AAA1v1 WebUI • Fast Diffusers</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22 100 100><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <header class="topbar">
+    <div class="logo-area">
+      <span class="logo-icon">⚡</span>
+      <span class="logo-title">AAA1<span class="highlight">v1</span></span>
+      <span class="badge">DIFFUSERS ENGINE</span>
+    </div>
+
+    <div class="topbar-controls">
+      <div class="control-group">
+        <label for="checkpoint-select">Stable Diffusion Checkpoint:</label>
+        <select id="checkpoint-select" class="dropdown">
+          <option value="">Scanning models...</option>
+        </select>
+        <button id="refresh-models-btn" class="icon-btn" title="Rescan Models">🔄</button>
+      </div>
+
+      <div class="control-group">
+        <label for="vae-select">VAE:</label>
+        <select id="vae-select" class="dropdown">
+          <option value="">Default (Baked VAE)</option>
+        </select>
+      </div>
+
+      <div class="system-status">
+        <span class="status-dot"></span>
+        <span id="system-status-text">CPU • 4 Threads</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Tabs -->
+  <nav class="tabs-nav">
+    <button class="tab-btn active" data-tab="txt2img-tab">txt2img</button>
+    <button class="tab-btn" data-tab="img2img-tab">img2img</button>
+    <button class="tab-btn" data-tab="inpaint-tab">Inpaint</button>
+    <button class="tab-btn" data-tab="gallery-tab">Gallery / History (<span id="history-count">0</span>)</button>
+  </nav>
+
+  <!-- App Workspace -->
+  <main class="workspace">
+
+    <!-- Tab 1: txt2img -->
+    <div id="txt2img-tab" class="tab-content active">
+      <div class="two-column-layout">
+
+        <!-- Left Controls -->
+        <div class="controls-panel">
+          <div class="prompt-box">
+            <div class="box-header">
+              <label for="prompt">Prompt</label>
+              <button id="sample-prompt-btn" class="mini-btn">💡 Prompt Idea</button>
+            </div>
+            <textarea id="prompt" rows="3" placeholder="A cinematic portrait of an ancient explorer in a neon cyber city, 8k, detailed..."></textarea>
+          </div>
+
+          <div class="prompt-box">
+            <div class="box-header">
+              <label for="negative-prompt">Negative Prompt</label>
+              <button id="neg-clean-btn" class="mini-btn">+ Standard Negative</button>
+            </div>
+            <textarea id="negative-prompt" rows="2" placeholder="blurry, distorted, bad anatomy, low quality, oversaturated..."></textarea>
+          </div>
+
+          <div class="actions-row">
+            <button id="generate-btn" class="btn-primary">Generate</button>
+            <button id="interrupt-btn" class="btn-danger hidden">Interrupt</button>
+          </div>
+
+          <!-- Parameter Sliders -->
+          <div class="param-grid">
+            <div class="param-item">
+              <label for="sampler-select">Sampling method</label>
+              <select id="sampler-select" class="dropdown">
+                <option value="LCM" selected>LCM (Recommended • 4-8 steps)</option>
+                <option value="Euler a">Euler a</option>
+                <option value="Euler">Euler</option>
+                <option value="DPM++ 2M Karras">DPM++ 2M Karras</option>
+              </select>
+            </div>
+
+            <div class="param-item">
+              <div class="slider-header">
+                <label for="steps">Sampling steps</label>
+                <input type="number" id="steps-num" min="1" max="50" value="5">
+              </div>
+              <input type="range" id="steps" min="1" max="50" value="5">
+            </div>
+
+            <div class="param-item">
+              <div class="slider-header">
+                <label for="cfg-scale">CFG Scale</label>
+                <input type="number" id="cfg-scale-num" min="1.0" max="15.0" step="0.1" value="1.5">
+              </div>
+              <input type="range" id="cfg-scale" min="1.0" max="15.0" step="0.1" value="1.5">
+            </div>
+
+            <div class="param-item full-width">
+              <label>Resolution Presets</label>
+              <div class="preset-buttons">
+                <button type="button" class="preset-btn active" data-w="512" data-h="512">512 × 512 (Square)</button>
+                <button type="button" class="preset-btn" data-w="512" data-h="768">512 × 768 (Portrait)</button>
+                <button type="button" class="preset-btn" data-w="768" data-h="512">768 × 512 (Landscape)</button>
+              </div>
+            </div>
+
+            <div class="param-item">
+              <div class="slider-header">
+                <label for="width">Width</label>
+                <input type="number" id="width-num" min="256" max="1024" step="64" value="512">
+              </div>
+              <input type="range" id="width" min="256" max="1024" step="64" value="512">
+            </div>
+
+            <div class="param-item">
+              <div class="slider-header">
+                <label for="height">Height</label>
+                <input type="number" id="height-num" min="256" max="1024" step="64" value="512">
+              </div>
+              <input type="range" id="height" min="256" max="1024" step="64" value="512">
+            </div>
+
+            <div class="param-item full-width">
+              <div class="seed-control">
+                <label for="seed">Seed</label>
+                <input type="number" id="seed" placeholder="-1 (Random)" value="-1">
+                <button id="random-seed-btn" class="icon-btn" title="Randomize Seed">🎲</button>
+                <button id="reuse-seed-btn" class="icon-btn" title="Reuse Last Seed">♻️</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- LoRA Section -->
+          <details class="accordion">
+            <summary>LoRA Networks (Optional)</summary>
+            <div class="accordion-content">
+              <div class="lora-row">
+                <select id="lora-select" class="dropdown">
+                  <option value="">None</option>
+                </select>
+                <div class="slider-header">
+                  <span>Weight: <strong id="lora-weight-val">0.75</strong></span>
+                  <input type="range" id="lora-weight" min="0.0" max="1.5" step="0.05" value="0.75">
+                </div>
+              </div>
+            </div>
+          </details>
+
+        </div>
+
+        <!-- Right Output / Preview -->
+        <div class="output-panel">
+
+          <!-- Live Progress Box -->
+          <div id="progress-container" class="progress-box hidden">
+            <div class="progress-bar-bg">
+              <div id="progress-bar" class="progress-bar-fill" style="width: 0%;"></div>
+            </div>
+            <div class="progress-status">
+              <span id="progress-text">Step 0/0 (0%)</span>
+              <span id="progress-eta">ETA: --</span>
+            </div>
+          </div>
+
+          <!-- Main Image Canvas -->
+          <div class="image-viewer">
+            <div id="placeholder-view" class="placeholder">
+              <div class="placeholder-icon">🎨</div>
+              <p>Your generated artwork will appear here</p>
+              <span class="subtext">Select an LCM model and hit Generate!</span>
+            </div>
+            <img id="main-output-img" class="output-img hidden" src="" alt="Generated artwork">
+          </div>
+
+          <!-- Actions Bar -->
+          <div id="image-actions" class="image-actions hidden">
+            <a id="download-btn" class="action-btn" download="generated.png" href="#">💾 Download</a>
+            <button id="send-img2img-btn" class="action-btn">🖼️ Send to img2img</button>
+            <button id="send-inpaint-btn" class="action-btn">🖌️ Send to Inpaint</button>
+            <button id="copy-meta-btn" class="action-btn" title="Copy info into prompt and parameters">📋 &lt;Copy Info&gt;</button>
+            <button id="delete-current-btn" class="action-btn btn-delete" title="Delete image from disk and history">🗑️ Delete</button>
+          </div>
+
+          <!-- Image Metadata Card -->
+          <div id="meta-card" class="meta-card hidden">
+            <div class="meta-row"><strong>Model:</strong> <span id="meta-model">-</span></div>
+            <div class="meta-row"><strong>Steps:</strong> <span id="meta-steps">-</span> | <strong>CFG:</strong> <span id="meta-cfg">-</span> | <strong>Sampler:</strong> <span id="meta-sampler">-</span></div>
+            <div class="meta-row"><strong>Seed:</strong> <span id="meta-seed">-</span></div>
+            <div class="meta-row"><strong>Render Time:</strong> <span id="meta-time">-</span></div>
+          </div>
+
+          <!-- Thumbnail Reel -->
+          <div class="thumbnail-strip-section">
+            <div class="strip-header">
+              <span>Recent Images</span>
+              <button id="clear-gallery-btn" class="mini-btn">Clear</button>
+            </div>
+            <div id="thumbnail-strip" class="thumbnail-strip">
+              <!-- Thumbnails injected here -->
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Tab 2: img2img -->
+    <div id="img2img-tab" class="tab-content">
+      <div class="two-column-layout">
+        <div class="controls-panel">
+          <div class="upload-dropzone" id="dropzone">
+            <input type="file" id="img2img-file" accept="image/*" class="hidden">
+            <div id="dropzone-text">
+              <div class="drop-icon">📁</div>
+              <p>Drag & drop image here, or <strong>browse</strong></p>
+            </div>
+            <img id="img2img-preview" class="img2img-preview hidden" src="" alt="Init preview">
+          </div>
+
+          <div class="prompt-box">
+            <label for="i2i-prompt">Prompt</label>
+            <textarea id="i2i-prompt" rows="2" placeholder="Modify this image into..."></textarea>
+          </div>
+
+          <div class="param-grid">
+            <div class="param-item">
+              <div class="slider-header">
+                <label for="denoising-strength">Denoising strength</label>
+                <input type="number" id="strength-num" min="0.1" max="1.0" step="0.05" value="0.65">
+              </div>
+              <input type="range" id="denoising-strength" min="0.1" max="1.0" step="0.05" value="0.65">
+            </div>
+
+            <div class="param-item">
+              <div class="slider-header">
+                <label for="i2i-steps">Steps</label>
+                <input type="number" id="i2i-steps-num" min="1" max="50" value="5">
+              </div>
+              <input type="range" id="i2i-steps" min="1" max="50" value="5">
+            </div>
+          </div>
+
+          <button id="i2i-generate-btn" class="btn-primary">Generate img2img</button>
+        </div>
+
+        <div class="output-panel">
+          <div class="image-viewer">
+            <img id="i2i-output-img" class="output-img hidden" src="" alt="img2img Output">
+          </div>
+          <div id="i2i-actions" class="image-actions hidden">
+            <a id="i2i-download-btn" class="action-btn" download="i2i_output.png" href="#">💾 Download</a>
+            <button id="i2i-send-inpaint-btn" class="action-btn">🖌️ Send to Inpaint</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 3: Inpaint -->
+    <div id="inpaint-tab" class="tab-content">
+      <div class="two-column-layout">
+
+        <!-- Left: Inpaint Controls & Interactive Canvas -->
+        <div class="controls-panel">
+
+          <div class="inpaint-editor-area">
+            <input type="file" id="inpaint-file" accept="image/*" class="hidden">
+
+            <div id="inpaint-dropzone" class="upload-dropzone">
+              <div class="drop-icon">🖌️</div>
+              <p>Drag & drop image here, <strong>browse</strong>, or send from txt2img</p>
+            </div>
+
+            <div id="inpaint-canvas-wrapper" class="inpaint-canvas-wrapper hidden">
+              <div class="canvas-stack" id="canvas-stack">
+                <img id="inpaint-base-img" class="inpaint-base-img" alt="Inpaint Source">
+                <canvas id="inpaint-mask-canvas" class="inpaint-mask-canvas"></canvas>
+              </div>
+
+              <!-- Canvas Drawing Tools Bar -->
+              <div class="inpaint-toolbar">
+                <div class="toolbar-item">
+                  <label for="brush-size">Brush: <span id="brush-size-val">30</span>px</label>
+                  <input type="range" id="brush-size" min="5" max="100" value="30">
+                </div>
+                <button type="button" id="inpaint-clear-btn" class="mini-btn">🧹 Clear Mask</button>
+                <button type="button" id="inpaint-undo-btn" class="mini-btn">↩️ Undo</button>
+                <label class="checkbox-label">
+                  <input type="checkbox" id="inpaint-invert"> Invert
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="prompt-box">
+            <div class="box-header">
+              <label for="inpaint-prompt">Inpaint Prompt</label>
+            </div>
+            <textarea id="inpaint-prompt" rows="2" placeholder="What to generate in the masked area (e.g. golden sunglasses, robotic eye, blooming flower)..."></textarea>
+          </div>
+
+          <div class="prompt-box">
+            <div class="box-header">
+              <label for="inpaint-neg-prompt">Negative Prompt</label>
+            </div>
+            <textarea id="inpaint-neg-prompt" rows="2" placeholder="blurry, distorted, bad anatomy, low quality..."></textarea>
+          </div>
+
+          <div class="actions-row">
+            <button id="inpaint-generate-btn" class="btn-primary">Generate Inpaint</button>
+            <button id="inpaint-interrupt-btn" class="btn-danger hidden">Interrupt</button>
+          </div>
+
+          <div class="param-grid">
+            <div class="param-item">
+              <div class="slider-header">
+                <label for="inpaint-strength">Denoising strength</label>
+                <input type="number" id="inpaint-strength-num" min="0.1" max="1.0" step="0.05" value="1.0">
+              </div>
+              <input type="range" id="inpaint-strength" min="0.1" max="1.0" step="0.05" value="1.0">
+            </div>
+
+            <div class="param-item">
+              <div class="slider-header">
+                <label for="inpaint-mask-blur">Mask blur (feather)</label>
+                <input type="number" id="inpaint-mask-blur-num" min="0" max="32" step="1" value="4">
+              </div>
+              <input type="range" id="inpaint-mask-blur" min="0" max="32" step="1" value="4">
+            </div>
+
+            <div class="param-item">
+              <div class="slider-header">
+                <label for="inpaint-steps">Sampling steps</label>
+                <input type="number" id="inpaint-steps-num" min="1" max="50" value="5">
+              </div>
+              <input type="range" id="inpaint-steps" min="1" max="50" value="5">
+            </div>
+
+            <div class="param-item">
+              <div class="slider-header">
+                <label for="inpaint-cfg">CFG Scale</label>
+                <input type="number" id="inpaint-cfg-num" min="1.0" max="15.0" step="0.1" value="1.5">
+              </div>
+              <input type="range" id="inpaint-cfg" min="1.0" max="15.0" step="0.1" value="1.5">
+            </div>
+
+            <div class="param-item full-width">
+              <div class="seed-control">
+                <label for="inpaint-seed">Seed</label>
+                <input type="number" id="inpaint-seed" placeholder="-1 (Random)" value="-1">
+                <button id="inpaint-random-seed-btn" class="icon-btn" title="Randomize Seed">🎲</button>
+                <button id="inpaint-reuse-seed-btn" class="icon-btn" title="Reuse Last Seed">♻️</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Right: Output Preview -->
+        <div class="output-panel">
+          <div class="image-viewer">
+            <div id="inpaint-placeholder-view" class="placeholder">
+              <div class="placeholder-icon">🖌️</div>
+              <p>Inpainted artwork will appear here</p>
+              <span class="subtext">Paint a mask over the subject and click Generate Inpaint</span>
+            </div>
+            <img id="inpaint-output-img" class="output-img hidden" src="" alt="Inpaint Output">
+          </div>
+
+          <div id="inpaint-image-actions" class="image-actions hidden">
+            <a id="inpaint-download-btn" class="action-btn" download="inpaint_output.png" href="#">💾 Download</a>
+            <button id="inpaint-reuse-output-btn" class="action-btn" title="Send output back into canvas for further inpainting">🖌️ Send back to Inpaint</button>
+            <button id="inpaint-send-img2img-btn" class="action-btn">🖼️ Send to img2img</button>
+            <button id="inpaint-copy-meta-btn" class="action-btn">📋 &lt;Copy Info&gt;</button>
+          </div>
+
+          <div id="inpaint-meta-card" class="meta-card hidden">
+            <div class="meta-row"><strong>Model:</strong> <span id="inpaint-meta-model">-</span></div>
+            <div class="meta-row"><strong>Steps:</strong> <span id="inpaint-meta-steps">-</span> | <strong>CFG:</strong> <span id="inpaint-meta-cfg">-</span> | <strong>Strength:</strong> <span id="inpaint-meta-strength">-</span></div>
+            <div class="meta-row"><strong>Seed:</strong> <span id="inpaint-meta-seed">-</span></div>
+            <div class="meta-row"><strong>Render Time:</strong> <span id="inpaint-meta-time">-</span></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Tab 4: Gallery / History -->
+    <div id="gallery-tab" class="tab-content">
+      <div class="gallery-grid" id="full-gallery-grid">
+        <!-- Full history injected here -->
+      </div>
+    </div>
+
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
