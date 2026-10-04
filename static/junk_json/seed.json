@@ -1,0 +1,27 @@
+{
+    "base_seed": 999990,
+    "num_seeds": 1,
+    "prompt": "a tiny cute robotic bird on a stone",
+    "model": "delusionsLCM_v20.safetensors",
+    "next_image_id": 2,
+    "runs": [
+        {
+            "image_id": 1,
+            "file": "999990_delusionsLCM_v20.safetensors_output.png",
+            "timestamp": "2026-09-09T05:49:16.224541",
+            "mode": "seed_explorer",
+            "prompt": "a tiny cute robotic bird on a stone",
+            "steps": 1,
+            "guidance_scale": 1.5,
+            "seed": 999990,
+            "width": 512,
+            "height": 768,
+            "model": "delusionsLCM_v20.safetensors"
+        }
+    ],
+    "last_completed_seed": 999990,
+    "last_completed_file": "999990_delusionsLCM_v20.safetensors_output.png",
+    "video": "seedX.mp4",
+    "video_frames": 1,
+    "video_fps": 10
+}

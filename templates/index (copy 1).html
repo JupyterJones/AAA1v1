@@ -37,11 +37,6 @@
         <span class="status-dot"></span>
         <span id="system-status-text">CPU • 4 Threads</span>
       </div>
-
-      <div style="display: flex; gap: 8px; margin-left: 10px;">
-        <a href="/flipbook" target="_blank" class="mini-btn" style="text-decoration: none; padding: 6px 10px; color: #a5b4fc; border: 1px solid rgba(165, 180, 252, 0.3);" title="Open Flipbook Player in new window">🎬 Flipbook ↗</a>
-        <a href="/videos" target="_blank" class="mini-btn" style="text-decoration: none; padding: 6px 10px; color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3);" title="Open Video Gallery in new window">🎞️ Videos ↗</a>
-      </div>
     </div>
   </header>
 
@@ -51,8 +46,6 @@
     <button class="tab-btn" data-tab="img2img-tab">img2img</button>
     <button class="tab-btn" data-tab="inpaint-tab">Inpaint</button>
     <button class="tab-btn" data-tab="gallery-tab">Gallery / History (<span id="history-count">0</span>)</button>
-    <button class="tab-btn" data-tab="flipbook-tab">🎬 Flipbook Player</button>
-    <button class="tab-btn" data-tab="videos-tab">🎞️ Videos</button>
   </nav>
 
   <!-- App Workspace -->
@@ -408,16 +401,6 @@
       <div class="gallery-grid" id="full-gallery-grid">
         <!-- Full history injected here -->
       </div>
-    </div>
-
-    <!-- Tab 5: Flipbook Player -->
-    <div id="flipbook-tab" class="tab-content" style="height: calc(100vh - 130px); padding: 0;">
-      <iframe src="/flipbook" style="width: 100%; height: 100%; border: none; border-radius: 8px; background: #0b0f19;"></iframe>
-    </div>
-
-    <!-- Tab 6: Video Gallery -->
-    <div id="videos-tab" class="tab-content" style="height: calc(100vh - 130px); padding: 0;">
-      <iframe src="/videos" style="width: 100%; height: 100%; border: none; border-radius: 8px; background: #060813;"></iframe>
     </div>
 
   </main>
